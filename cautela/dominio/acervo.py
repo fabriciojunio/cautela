@@ -172,8 +172,125 @@ def fatos_de_credito(raiz: Path) -> list[Fato]:
     ]
 
 
+def fatos_de_duracao_judicial(raiz: Path) -> list[Fato]:
+    """Duracao de processo judicial, do projeto Decurso.
+
+    Entra num agente de investimentos porque contingencia judicial e passivo:
+    quem avalia uma empresa precisa saber quanto tempo o processo dura e quanto
+    disso vira provisao.
+    """
+    dados = _ler(raiz / "decurso" / "resultados" / "duracao.json")
+    if not dados:
+        return []
+
+    comp = dados.get("comparacao_das_duas_contas") or {}
+    km = comp.get("mediana_kaplan_meier")
+    encerrados = comp.get("mediana_dos_encerrados")
+    razao = comp.get("razao")
+    if km is None or encerrados is None or razao is None:
+        return []
+
+    return [
+        Fato(
+            chave="judicial:duracao",
+            pergunta="Quanto tempo dura um processo judicial, e a conta de planilha serve?",
+            valor=(
+                f"mediana de {int(km)} dias por Kaplan-Meier, contra {int(encerrados)} dias "
+                f"pela media dos processos ja encerrados: razao de {_numero(razao)}"
+            ),
+            leitura=(
+                "a conta de planilha so olha o que ja terminou, e o que ainda esta correndo e "
+                "justamente o mais demorado. O erro nao e aleatorio: e maior na vara mais lenta."
+            ),
+            fonte="API publica do CNJ, processos coletados pelo DataJud",
+            limite=(
+                "a coleta veio incompleta, com 4.118 processos de 9.852 estimados, e isso esta "
+                "declarado em vez de invisivel"
+            ),
+            reproduzir="python experimentos/02_duracao.py, no projeto Decurso",
+            numeros=(str(int(km)), str(int(encerrados)), _numero(razao)),
+        )
+    ]
+
+
+def fatos_de_texto_regulatorio(raiz: Path) -> list[Fato]:
+    """Vazamento de anotacao, do projeto Verbete.
+
+    E o fato mais util do acervo para quem vai construir modelo: mostra o
+    tamanho do engano que um campo contaminado produz.
+    """
+    dados = _ler(raiz / "verbete" / "resultados" / "treino.json")
+    if not dados:
+        return []
+
+    vaz = dados.get("vazamento_de_anotacao") or {}
+    sem = vaz.get("micro_f1_sem")
+    com = vaz.get("micro_f1_com")
+    if sem is None or com is None:
+        return []
+
+    ganho = (com / sem - 1) * 100 if sem else 0
+    return [
+        Fato(
+            chave="texto:vazamento",
+            pergunta="Quanto um campo contaminado infla o resultado de um modelo de texto?",
+            valor=f"micro-F1 de {_numero(sem, 3)} sem o campo e {_numero(com, 3)} com ele",
+            leitura=(
+                f"o modelo pareceria {ganho:.0f}% melhor do que vai ser em producao, porque o "
+                "campo e preenchido pela mesma pessoa que atribui o rotulo e nao existe no dia "
+                "em que o documento chega."
+            ),
+            fonte="proposicoes legislativas da API da Camara dos Deputados",
+            limite=(
+                "a divisao e temporal e nao aleatoria: proposicao sobre o mesmo assunto reaparece "
+                "a cada legislatura com ementa quase igual, e divisao aleatoria poria a quase-copia "
+                "nos dois lados"
+            ),
+            reproduzir="python experimentos/02_treinar.py, no projeto Verbete",
+            numeros=(_numero(sem, 3), _numero(com, 3)),
+        )
+    ]
+
+
+def fatos_de_efeito_de_contato(raiz: Path) -> list[Fato]:
+    """Efeito incremental de contato, do projeto Trato."""
+    dados = _ler(raiz / "trato" / "resultados" / "cartao_do_dado.json")
+    if not dados:
+        return []
+
+    efeito = dados.get("efeito_medio")
+    if efeito is None:
+        return []
+
+    return [
+        Fato(
+            chave="contato:efeito",
+            pergunta="Contatar o cliente muda o comportamento dele, ou ele ja ia agir sozinho?",
+            valor=f"efeito medio do contato medido em experimento aleatorizado: {efeito}",
+            leitura=(
+                "a pergunta certa nao e quem vai agir, e quem age POR CAUSA do contato. Modelo de "
+                "resposta manda mensagem para quem ja ia agir, que e onde o contato so custa."
+            ),
+            fonte=str(dados.get("fonte", "experimento aleatorizado publico")),
+            limite=(
+                "uplift nao tem rotulo individual: ninguem e observado contatado e nao contatado "
+                "ao mesmo tempo, entao toda validacao e por grupo"
+            ),
+            reproduzir="python experimentos/02_uplift.py, no projeto Trato",
+            numeros=(str(efeito),),
+        )
+    ]
+
+
 def carregar(raiz: Path | None = None) -> list[Fato]:
     """Todos os fatos disponiveis. Ordem estavel, para o teste nao depender de sorte."""
     base = raiz or RAIZ_PADRAO
-    fatos = fatos_de_persistencia(base) + fatos_de_taxa(base) + fatos_de_credito(base)
+    fatos = (
+        fatos_de_persistencia(base)
+        + fatos_de_taxa(base)
+        + fatos_de_credito(base)
+        + fatos_de_duracao_judicial(base)
+        + fatos_de_texto_regulatorio(base)
+        + fatos_de_efeito_de_contato(base)
+    )
     return sorted(fatos, key=lambda f: f.chave)

@@ -14,6 +14,7 @@ from cautela.dominio.politica import (
     auditar,
     contem_recomendacao,
     numeros_sem_lastro,
+    pergunta_pede_recomendacao,
 )
 
 FATO = Fato(
@@ -84,6 +85,37 @@ def test_conversao_de_unidade_e_tratada_como_numero_novo() -> None:
     # nenhum. Derivacao e exatamente onde um modelo erra sem parecer errado.
     texto = "A chance de repetir foi de 94%."
     assert "94%" in numeros_sem_lastro(texto, [FATO])
+
+
+@pytest.mark.parametrize(
+    "pergunta",
+    [
+        "qual acao comprar agora?",
+        "quais fundos devo comprar?",
+        "vale a pena investir em renda fixa?",
+        "onde investir meu dinheiro?",
+        "qual o melhor fundo?",
+    ],
+)
+def test_pergunta_que_pede_conselho_e_reconhecida(pergunta: str) -> None:
+    # Buraco encontrado rodando o agente: perguntado "qual acao comprar agora",
+    # ele devolvia um fato correto sobre escolher pelo passado e NAO dizia que
+    # nao recomenda. A resposta era honesta e incompleta.
+    assert pergunta_pede_recomendacao(pergunta)
+
+
+@pytest.mark.parametrize(
+    "pergunta",
+    [
+        "o desempenho passado de um fundo prediz o futuro?",
+        "quem compra pelo desempenho passado acerta?",
+        "quanto a hipotese de perda move a provisao?",
+    ],
+)
+def test_pergunta_sobre_o_assunto_nao_e_pedido_de_conselho(pergunta: str) -> None:
+    # A segunda pergunta e a dificil: tem "compra" e continua sendo pergunta
+    # sobre comportamento medido, nao pedido de conselho.
+    assert not pergunta_pede_recomendacao(pergunta)
 
 
 def test_numero_que_esta_no_proprio_fato_nao_e_invencao() -> None:
