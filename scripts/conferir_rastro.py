@@ -34,8 +34,15 @@ def main() -> int:
     # Janela de um dia porque a ingestao tem atraso de alguns minutos, e
     # conferir logo depois de rodar o agente devolvia vazio com tudo correto.
     # Vazio aqui nao prova que nada foi enviado; prova que nada chegou AINDA.
+    #
+    # `fields` nao e opcional por comodidade. A v2 devolve grupos de campos, e o
+    # padrao e `core,basic`: nome, tipo e horario. Entrada, saida, modelo, token
+    # e custo ficam FORA, e vem ausentes, nao nulos. Sem pedir, este script
+    # mostrava a estrutura do rastro e nenhum conteudo, o que e pior do que nao
+    # mostrar nada: parece que o agente registrou uma geracao sem token.
     agora = datetime.now(UTC)
     pagina = cliente.api.observations.get_many(
+        fields="core,basic,io,model,usage",
         from_start_time=agora - timedelta(days=1),
         to_start_time=agora + timedelta(hours=1),
         limit=50,
@@ -48,7 +55,28 @@ def main() -> int:
 
     print(f"{len(observacoes)} observacoes nas ultimas 24 horas:\n")
     for o in observacoes:
-        print(f"  {o.start_time}  {o.name}  ({o.type})")
+        linha = f"  {o.start_time}  {o.name}  ({o.type})"
+        modelo = getattr(o, "model", None)
+        if modelo:
+            linha += f"  modelo={modelo}"
+        uso = getattr(o, "usage_details", None)
+        if uso:
+            linha += f"  tokens={uso.get('input')}/{uso.get('output')}"
+        custo = getattr(o, "total_cost", None)
+        if custo is not None:
+            linha += f"  US$ {custo}"
+        print(linha)
+
+    # Uma geracao sem modelo e sem token e o sinal de que o atributo nao subiu,
+    # e nao de que a chamada foi barata. Vale dizer em voz alta.
+    mudas = [
+        o
+        for o in observacoes
+        if o.type == "GENERATION" and not getattr(o, "model", None) and not getattr(o, "usage_details", None)
+    ]
+    if mudas:
+        print(f"\nAtencao: {len(mudas)} geracao(oes) sem modelo e sem token.")
+        print("Confira se os atributos estao sendo passados na criacao da span.")
     return 0
 
 

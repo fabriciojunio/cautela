@@ -40,10 +40,16 @@ e a recusa.
 Nenhum número é digitado à mão. O acervo é montado lendo os artefatos JSON dos
 experimentos dos projetos vizinhos:
 
-| Projeto | O que entra |
-|---|---|
-| Prumo | persistência de desempenho de fundo, por classe, e cobertura do dado de taxa |
-| Anteparo | sensibilidade da provisão de crédito à hipótese |
+| Projeto | Artefato lido | O que entra |
+|---|---|---|
+| Prumo | `prumo/resultados/persistencia.json` | persistência de desempenho de fundo, por classe de carteira |
+| Prumo | `prumo/resultados/taxa.json` | cobertura do dado de taxa de administração |
+| Anteparo | `credito-ifrs9/resultados/cartao_do_modelo.json` | sensibilidade da provisão de crédito à hipótese |
+| Decurso | `decurso/resultados/duracao.json` | duração de processo judicial, com a base e o recorte |
+| Verbete | `verbete/resultados/treino.json` | classificação de texto regulatório |
+| Trato | `trato/resultados/cartao_do_dado.json` | efeito medido do contato na renegociação |
+
+São 17 fatos ao todo, de seis carregadores.
 
 Isso tem uma consequência prática: **se o experimento for refeito e o resultado
 mudar, o agente passa a responder o número novo sem ninguém editar texto.** Já
@@ -129,6 +135,19 @@ Segunda lição do mesmo episódio: depois de corrigir, a consulta continuou
 devolvendo vazio por alguns minutos. A ingestão tem atraso, e vazio logo depois
 de rodar não prova que nada foi enviado, prova que nada chegou ainda.
 
+Terceira, e a mais sutil das três: o script passou a listar as observações
+corretamente, com nome, tipo e horário, e **todas as gerações apareciam sem
+modelo e sem token**. A conclusão fácil era que os atributos não estavam
+subindo. Não era isso. A versão 2 da API devolve grupos de campos, o padrão é
+`core,basic`, e entrada, saída, modelo, token e custo ficam fora — e vêm
+ausentes, não nulos. O dado estava lá desde o começo; quem não pedia era a
+conferência.
+
+É o mesmo erro das outras duas vezes com o sinal trocado. Antes a ferramenta
+dizia que estava tudo bem e não estava; agora dizia que faltava dado e não
+faltava. Nos dois casos a causa é a mesma: acreditar na ferramenta de
+verificação sem verificar a ferramenta.
+
 ## Um defeito que o próprio sistema encontrou
 
 Na primeira execução contra os artefatos reais, o agente **recusou a própria
@@ -149,4 +168,4 @@ python -m venv .venv
 .venv\Scripts\python -m ruff check .
 ```
 
-21 testes, nenhum deles tocando a rede.
+34 testes, nenhum deles tocando a rede.
