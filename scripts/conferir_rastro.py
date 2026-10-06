@@ -13,7 +13,7 @@ das chaves.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from dotenv import load_dotenv
 
@@ -34,7 +34,7 @@ def main() -> int:
     # Janela de um dia porque a ingestao tem atraso de alguns minutos, e
     # conferir logo depois de rodar o agente devolvia vazio com tudo correto.
     # Vazio aqui nao prova que nada foi enviado; prova que nada chegou AINDA.
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(UTC)
     pagina = cliente.api.observations.get_many(
         from_start_time=agora - timedelta(days=1),
         to_start_time=agora + timedelta(hours=1),
