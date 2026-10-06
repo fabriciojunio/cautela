@@ -15,6 +15,20 @@ from cautela.agente.grafo import responder
 from cautela.dominio.acervo import carregar
 
 
+def carregar_env() -> None:
+    """Le o .env local, se existir.
+
+    Fica aqui e nao no modulo de rastro de proposito: a biblioteca nao deve
+    decidir de onde vem a configuracao do processo. Quem roda e quem decide, e
+    no teste nenhuma variavel de ambiente e carregada por acidente.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv()
+
+
 def listar() -> int:
     fatos = carregar()
     if not fatos:
@@ -31,6 +45,7 @@ def listar() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    carregar_env()
     args = argv if argv is not None else sys.argv[1:]
     if not args:
         return listar()

@@ -115,6 +115,7 @@ def responder(
         _COMPILADO = construir()
 
     rastro = adaptador_rastro.abrir(pergunta)
+    saida: dict[str, Any] = {}
     try:
         final = _COMPILADO.invoke(
             {
@@ -124,12 +125,17 @@ def responder(
                 "acervo": acervo or [],
             }
         )
+        saida = {
+            "resposta": final["resposta"],
+            "veredicto": final["veredicto"],
+            "origem": final.get("origem", "local"),
+            "fatos": [f.chave for f in final.get("fatos", [])],
+        }
     finally:
-        rastro.encerrar()
+        # O encerramento recebe o resultado para a execucao no painel mostrar a
+        # resposta final, e nao so as etapas. Fica no finally porque a execucao
+        # que estourou no meio e justamente a que mais interessa ter registrada,
+        # e nesse caso `saida` fica vazia, que e o sinal de que algo quebrou.
+        rastro.encerrar(**saida)
 
-    return {
-        "resposta": final["resposta"],
-        "veredicto": final["veredicto"],
-        "origem": final.get("origem", "local"),
-        "fatos": [f.chave for f in final.get("fatos", [])],
-    }
+    return saida

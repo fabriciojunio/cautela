@@ -1,0 +1,56 @@
+"""Confere se o rastro chegou ao Langfuse, lendo de volta pela API.
+
+Existe porque telemetria e o tipo de coisa que falha em silencio: o SDK aceita a
+chamada, o processo termina, e ninguem descobre que nada foi enviado ate
+precisar do dado. A unica prova de que funciona e ler de volta.
+
+    python scripts/conferir_rastro.py
+
+O cliente le as credenciais do ambiente sozinho; este script nunca toca no valor
+das chaves.
+"""
+
+from __future__ import annotations
+
+import sys
+from datetime import datetime, timedelta, timezone
+
+from dotenv import load_dotenv
+
+
+def main() -> int:
+    load_dotenv()
+
+    from langfuse import Langfuse
+
+    cliente = Langfuse()
+    if not cliente.auth_check():
+        print("Autenticacao recusada pelo Langfuse. Confira as chaves no .env.")
+        return 1
+
+    # A API antiga de traces (`/api/public/traces`) responde 410 para
+    # organizacao criada a partir de setembro de 2026. O caminho atual e a de
+    # observacoes, com janela de tempo obrigatoria.
+    # Janela de um dia porque a ingestao tem atraso de alguns minutos, e
+    # conferir logo depois de rodar o agente devolvia vazio com tudo correto.
+    # Vazio aqui nao prova que nada foi enviado; prova que nada chegou AINDA.
+    agora = datetime.now(timezone.utc)
+    pagina = cliente.api.observations.get_many(
+        from_start_time=agora - timedelta(days=1),
+        to_start_time=agora + timedelta(hours=1),
+        limit=50,
+    )
+    observacoes = getattr(pagina, "data", [])
+    if not observacoes:
+        print("Autenticou, mas nenhuma observacao chegou nas ultimas 24 horas.")
+        print("Se o agente acabou de rodar, espere alguns minutos: a ingestao atrasa.")
+        return 1
+
+    print(f"{len(observacoes)} observacoes nas ultimas 24 horas:\n")
+    for o in observacoes:
+        print(f"  {o.start_time}  {o.name}  ({o.type})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
