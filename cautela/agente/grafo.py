@@ -75,13 +75,27 @@ def redigir(estado: Estado) -> Estado:
 
 def auditar(estado: Estado) -> Estado:
     veredicto = politica.auditar(estado["rascunho"], estado["fatos"])
+    pediu = politica.pergunta_pede_recomendacao(estado["pergunta"])
     estado["rastro"].evento(
         "auditar",
         aprovada=veredicto.aprovada,
         motivo=veredicto.motivo,
+        pediu_recomendacao=pediu,
     )
     if veredicto.aprovada:
-        return {**estado, "resposta": estado["rascunho"], "veredicto": "aprovada"}
+        # Quando a pergunta pediu conselho, o aviso vem antes do fato. A pessoa
+        # precisa saber que aquilo nao e recomendacao ANTES de ler o numero, e
+        # nao depois.
+        texto = (
+            f"{politica.RECUSA_RECOMENDACAO}\n\n{estado['rascunho']}"
+            if pediu
+            else estado["rascunho"]
+        )
+        return {
+            **estado,
+            "resposta": texto,
+            "veredicto": "aprovada com aviso" if pediu else "aprovada",
+        }
     return {
         **estado,
         "resposta": veredicto.texto_substituto,

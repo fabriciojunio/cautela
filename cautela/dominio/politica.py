@@ -73,6 +73,33 @@ def contem_recomendacao(texto: str) -> bool:
     return any(re.search(p, alvo) for p in PADROES_DE_RECOMENDACAO)
 
 
+# Pergunta que PEDE recomendacao. E uma lista diferente da de cima: aqui a
+# forma e interrogativa, e barrar "comprar" sozinho impediria perguntar sobre
+# comportamento de quem compra, que e assunto legitimo do acervo.
+PADROES_DE_PEDIDO = (
+    r"\b(qual|quais|que)\b.{0,40}\b(comprar|vender|investir|aplicar)\b",
+    r"\b(devo|posso|vale a pena)\b.{0,30}\b(comprar|vender|investir|aplicar)\b",
+    r"\bo que (voce )?(recomenda|sugere|acha que eu)\b",
+    r"\bmelhor (fundo|acao|a[cç][aã]o|investimento)\b",
+    r"\bonde (investir|aplicar)\b",
+)
+
+
+def pergunta_pede_recomendacao(pergunta: str) -> bool:
+    """Reconhece o pedido antes de o modelo ser chamado.
+
+    O auditor cuida da saida, mas havia um buraco: perguntado "qual acao
+    comprar agora", o agente devolvia um fato correto sobre escolher pelo
+    passado e NAO dizia que nao recomenda. A resposta era honesta e incompleta,
+    porque a pessoa foi embora sem saber que aquilo nao era conselho.
+
+    A resposta certa nao e recusar a pergunta inteira: e dizer que nao recomenda
+    e entregar o que foi medido logo em seguida.
+    """
+    alvo = pergunta.lower()
+    return any(re.search(p, alvo) for p in PADROES_DE_PEDIDO)
+
+
 def numeros_sem_lastro(texto: str, fatos: list[Fato]) -> list[str]:
     """Numeros presentes na resposta que nao aparecem em nenhum fato recuperado.
 
