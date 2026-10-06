@@ -81,15 +81,53 @@ gratuito acaba.
 
 ## Observabilidade
 
-Com `LANGFUSE_PUBLIC_KEY` e `LANGFUSE_SECRET_KEY` configuradas, cada execução vai
-para o Langfuse com uma span por etapa: os termos da pergunta, quais fatos foram
-recuperados, o tamanho do texto gerado e o veredicto do auditor.
+Dois destinos pela mesma porta, porque eles respondem perguntas diferentes:
 
-O campo que mais vale é o veredicto: ele transforma "o agente respondeu estranho"
-numa contagem de quantas respostas foram barradas e por quê.
+**Langfuse** é específico de LLM. Guarda entrada, saída e veredicto de cada
+etapa, e serve para abrir **uma** execução e entender por que ela saiu assim. A
+execução aparece como um `agent` com três spans dentro: recuperar, redigir e
+auditar.
 
-Sem as chaves, o rastro é desligado e o agente roda igual. Falha de telemetria
-nunca derruba a resposta de quem perguntou.
+**Datadog LLM Observability** é a visão de conjunto: quantas execuções, quanto
+tempo, quantas recusas, e é onde o alerta dispara quando a taxa de recusa muda
+de patamar.
+
+O campo que mais vale nos dois é o veredicto do auditor: ele transforma "o agente
+respondeu estranho" numa contagem de quantas respostas foram barradas e por quê.
+
+Configuração, num `.env` local que não vai para o repositório:
+
+```
+LANGFUSE_PUBLIC_KEY=...
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_HOST=https://us.cloud.langfuse.com
+
+DD_LLMOBS_ENABLED=1
+DD_LLMOBS_ML_APP=cautela
+DD_API_KEY=...
+```
+
+Nenhuma credencial passa pelo código: os dois SDKs leem as próprias variáveis, e
+o projeto só verifica se elas existem.
+
+Sem chave, o rastro desliga e o agente roda igual. Falha de telemetria nunca
+derruba a resposta de quem perguntou, e cada exportador é isolado do outro.
+
+Para conferir que o rastro chegou mesmo: `python scripts/conferir_rastro.py`.
+
+### O defeito que esse script encontrou
+
+A primeira versão do exportador chamava `start_span`, que é o nome do método na
+versão 3 do SDK do Langfuse. Na versão 4 ele se chama `start_observation`. O
+`try` em volta, que existe para telemetria não derrubar resposta, engoliu o
+`AttributeError`: o agente respondia normalmente e **nada era registrado**.
+
+É o modo de falha mais perigoso de observabilidade, e o único jeito de pegar é
+ler de volta. Por isso o script existe.
+
+Segunda lição do mesmo episódio: depois de corrigir, a consulta continuou
+devolvendo vazio por alguns minutos. A ingestão tem atraso, e vazio logo depois
+de rodar não prova que nada foi enviado, prova que nada chegou ainda.
 
 ## Um defeito que o próprio sistema encontrou
 
