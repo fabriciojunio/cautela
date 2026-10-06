@@ -12,6 +12,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
+# Extras do rastro. Ficam separados porque o agente responde sem eles, e quem
+# so quer rodar a suite nao precisa baixar o agente do Datadog.
+rastro = ["ddtrace>=3.0", "python-dotenv>=1.0"]
 
 # Sem isto, o setuptools acha duas raizes no diretorio (cautela e testes) e se
 # recusa a construir. Declarar o pacote e mais honesto que mover a pasta de
